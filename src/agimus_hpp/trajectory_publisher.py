@@ -191,8 +191,7 @@ class HppOutputQueue(HppClient):
         try:
             hpp = self.hpp()
             # TODO at the moment, the root joint is considered to be always added.
-            names = [ n for n in req.names if "root_joint" not in n ]
-            self.discretization.setJointNames (names)
+            self.discretization.setJointNames (req.names)
         except CORBA.Exception as e:
             rospy.logerr("Could not set joint names: {}\nResetting connection to HPP.".format(e))
             self._disconnect()

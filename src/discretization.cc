@@ -31,6 +31,7 @@
 #include <pinocchio/algorithm/frames.hpp>
 #include <hpp/util/timer.hh>
 #include <hpp/pinocchio/joint.hh>
+#include <hpp/pinocchio/liegroup-space.hh>
 #include <hpp/pinocchio/center-of-mass-computation.hh>
 #include <hpp/pinocchio/joint-collection.hh>
 
@@ -40,6 +41,9 @@
 namespace hpp {
   namespace agimus {
     HPP_DEFINE_TIMECOUNTER(discretization);
+
+    using hpp::pinocchio::LiegroupSpace;
+    using hpp::pinocchio::size_type;
 
     static const uint32_t queue_size = 1000;
 
@@ -110,10 +114,11 @@ namespace hpp {
       device.computeFramesForwardKinematics();
 
       dynamic_graph_bridge_msgs::Vector qmsgs;
-
-      qmsgs.data.resize(qView_.nbIndices()+6);
-      Eigen::Map<pinocchio::vector_t> (qmsgs.data.data()+6, qView_.nbIndices()) = qView_.rview(q_);
-      { // Set root joint position
+      size_type sizeFreeflyer = (hasFreeflyer_ ? 6 : 0);
+      qmsgs.data.resize(qView_.nbIndices()+sizeFreeflyer);
+      Eigen::Map<pinocchio::vector_t> (qmsgs.data.data()+sizeFreeflyer,
+				       qView_.nbIndices()) = qView_.rview(q_);
+      if (hasFreeflyer_) { // Set root joint position
         // TODO at the moment, we must convert the quaternion into RPY values.
         const pinocchio::SE3& oMrj = device.data().oMi[1];
         Eigen::Map<pinocchio::vector3_t> (qmsgs.data.data()  ) = oMrj.translation();
@@ -121,10 +126,12 @@ namespace hpp {
       }
       pubQ.publish (qmsgs);
 
-      qmsgs.data.resize(vView_.nbIndices()+6);
-      Eigen::Map<pinocchio::vector_t> (qmsgs.data.data()+6, vView_.nbIndices()) = vView_.rview(v_);
+      qmsgs.data.resize(vView_.nbIndices()+sizeFreeflyer);
+      Eigen::Map<pinocchio::vector_t> (qmsgs.data.data()+sizeFreeflyer,
+				       vView_.nbIndices()) = vView_.rview(v_);
       { // TODO Set root joint velocity
-        Eigen::Map<pinocchio::vector_t> (qmsgs.data.data(), 6).setZero();
+        Eigen::Map<pinocchio::vector_t> (qmsgs.data.data(),
+					 sizeFreeflyer).setZero();
       }
       pubV.publish (qmsgs);
 
@@ -229,13 +236,26 @@ namespace hpp {
 
     void Discretization::setJointNames (const std::vector<std::string>& names)
     {
+      hasFreeflyer_ = false;
       qView_ = Eigen::RowBlockIndices();
       vView_ = Eigen::RowBlockIndices();
       for (std::size_t i = 0; i < names.size(); ++i) {
         const std::string& name = names[i];
         core::JointPtr_t joint = device_->getJointByName(name);
-        qView_.addRow(joint->rankInConfiguration(), joint->configSize());
-        vView_.addRow(joint->rankInVelocity     (), joint->numberDof ());
+	if ((*joint->configurationSpace() == *LiegroupSpace::SE3()) ||
+	    (*joint->configurationSpace() == *LiegroupSpace::R3xSO3()) ||
+	    (*joint->configurationSpace() == *LiegroupSpace::SE2()) ||
+	    (*joint->configurationSpace() == *LiegroupSpace::R2xSO2()))
+	{
+	  // If robot has a floating base, the 6 first components of the
+	  // configuration in the Stack of Tasks are the configuration variables
+	  // of the floating base.
+	  hasFreeflyer_ = true;
+	} else
+	{
+	  qView_.addRow(joint->rankInConfiguration(), joint->configSize());
+	  vView_.addRow(joint->rankInVelocity     (), joint->numberDof ());
+	}
       }
       qView_.updateRows<true,true,true>();
       vView_.updateRows<true,true,true>();

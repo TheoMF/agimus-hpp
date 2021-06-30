@@ -149,6 +149,8 @@ namespace hpp {
           void initPublishers (const std::string& prefix, const std::string& name, ros::NodeHandle& nh);
         };
         std::vector<FrameData> frames_;
+        // whether the robot has a freeflyer joint in the Stack of Tasks
+        bool hasFreeflyer_;
     };
   } // namespace agimus
 } // namespace hpp
