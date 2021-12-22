@@ -12,6 +12,7 @@
 #define HPP_AGIMUS_IDL_SERVER_IDL
 #include <hpp/common.idl>
 #include <hpp/agimus_idl/discretization.idl>
+#include <hpp/agimus_idl/point-cloud.idl>
 
 module hpp
 {
@@ -20,6 +21,7 @@ module hpp
     interface Server
     {
       Discretization getDiscretization () raises (Error);
+      PointCloud getPointCloud () raises (Error);
     }; // interface Server
 
   }; // module agimus

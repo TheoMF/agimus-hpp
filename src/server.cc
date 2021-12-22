@@ -34,8 +34,10 @@
 #include <hpp/corbaserver/servant-base.hh>
 
 #include "hpp/agimus_idl/discretization.hh"
-
 #include <hpp/agimus/discretization.hh>
+
+#include "hpp/agimus_idl/point-cloud.hh"
+#include <hpp/agimus/point-cloud.hh>
 
 namespace hpp {
   namespace agimus {
@@ -51,6 +53,19 @@ namespace hpp {
         servant->persistantStorage(false);
 
         return corbaServer::makeServant<agimus_idl::Discretization_ptr>
+          (server_->parent(), servant);
+      }
+
+      agimus_idl::PointCloud_ptr Server::getPointCloud ()
+      {
+        pointCloud_ =
+          PointCloud::create (server_->problemSolver()->robot());
+
+        agimus_impl::PointCloud* servant =
+          new agimus_impl::PointCloud (server_->parent(), pointCloud_);
+        servant->persistantStorage(false);
+
+        return corbaServer::makeServant<agimus_idl::PointCloud_ptr>
           (server_->parent(), servant);
       }
 
