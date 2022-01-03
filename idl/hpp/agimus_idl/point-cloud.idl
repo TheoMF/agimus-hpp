@@ -39,15 +39,22 @@ module hpp {
       boolean initializeRosNode (in string name, in boolean anonymous)
       raises (Error);
       void    shutdownRos () raises (Error);
-      /// Get point cloud from ROS topic
-      /// \param topic name of the topic,
+      /// Build an octree from a point cloud read on a ROS topic
+      /// \param octreeFrame frame to which the octree is attached.
+      /// \param topic name of the topic. Topic should be of type
+      ///        sensor_msgs/PointCloud2
+      /// \param sensorFrame name of the frame in which the point cloud is
+      ///        expressed.
+      /// \param resolution resolution of the Octree built from the point cloud.
+      /// \param configuration configuration of the system. Used to compute the
+      ///        pose of the joint holding the octree with respect to the
+      ///        sensor frame.
       /// \param timeOut time after which the function returns error if no data
       ///        has been published (in seconds).
-      /// \param topic name of the topic, should be of type
-      ///        sensor_msgs/PointCloud2
-      /// \param joint joint to which the point cloud is attached.
-      ///        point cloud has been read.
-      boolean getPointCloud(in string joint, in string topic, in double timeOut)
+      boolean getPointCloud(in string octreeFrame, in string topic,
+			    in string sensorFrame,
+			    in double resolution, in floatSeq configuration,
+			    in double timeOut)
       raises (Error);
     }; // interface PointCloud
   }; // module agimus_idl

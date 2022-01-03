@@ -45,6 +45,8 @@ CHECK_MINIMAL_CXX_STANDARD(11)
 
 OPTION(BUILD_HPP_PLUGIN "Compile and install agimus-hpp.so" ON)
 OPTION(BUILD_ROS_INTERFACE "" ON)
+OPTION(CLIENT_TO_GEPETTO_VIEWER
+  "Whether to implement a client to geperro-viewer to display octomaps" OFF)
 
 LIST(APPEND PKG_CONFIG_ADDITIONAL_VARIABLES cmake_plugin)
 
@@ -80,7 +82,10 @@ endif(BUILD_HPP_PLUGIN)
 
 ADD_REQUIRED_DEPENDENCY("omniORB4")
 ADD_PROJECT_DEPENDENCY("hpp-corbaserver")
-ADD_PROJECT_DEPENDENCY("hpp-manipulation-corba")
+ADD_PROJECT_DEPENDENCY("hpp-manipulation")
+IF (CLIENT_TO_GEPETTO_VIEWER)
+  ADD_PROJECT_DEPENDENCY("gepetto-viewer-corba")
+ENDIF(CLIENT_TO_GEPETTO_VIEWER)
 
 ADD_SUBDIRECTORY(src)
 

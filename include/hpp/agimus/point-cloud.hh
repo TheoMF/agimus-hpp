@@ -36,22 +36,18 @@
 #include <sensor_msgs/PointCloud2.h>
 
 #include <hpp/util/pointer.hh>
-#include <hpp/pinocchio/fwd.hh>
+#include <hpp/agimus/fwd.hh>
 
 namespace hpp {
   namespace agimus {
-    typedef pinocchio::DevicePtr_t DevicePtr_t;
-    typedef pinocchio::size_type size_type;
-    typedef pinocchio::value_type value_type;
-    HPP_PREDEF_CLASS(PointCloud);
-    typedef shared_ptr<PointCloud> PointCloudPtr_t;
-
     class PointCloud
     {
     public:
-      static PointCloudPtr_t create (const DevicePtr_t device)
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+      typedef hpp::fcl::OcTreePtr_t OcTreePtr_t;
+      static PointCloudPtr_t create (const ProblemSolverPtr_t& ps)
       {
-	PointCloudPtr_t ptr (new PointCloud(device));
+	PointCloudPtr_t ptr (new PointCloud(ps));
 	ptr->init(ptr);
 	return ptr;
       }
@@ -59,15 +55,22 @@ namespace hpp {
       bool initializeRosNode (const std::string& name, bool anonymous);
 
       void shutdownRos ();
-      /// Get point cloud from ROS topic
-      /// \param topic name of the topic,
+      /// Build an octree from a point cloud read on a ROS topic
+      /// \param octreeFrame frame to which the octree is attached.
+      /// \param topic name of the topic. Topic should be of type
+      ///        sensor_msgs/PointCloud2
+      /// \param sensorFrame name of the frame in which the point cloud is
+      ///        expressed.
+      /// \param resolution resolution of the Octree built from the point cloud.
+      /// \param configuration configuration of the system. Used to compute the
+      ///        pose of the joint holding the octree with respect to the
+      ///        sensor frame.
       /// \param timeOut time after which the function returns error if no data
       ///        has been published (in seconds).
-      /// \param topic name of the topic, should be of type
-      ///        sensor_msgs/PointCloud2
-      /// \param joint joint to which the point cloud is attached.
-      ///        point cloud has been read.
-      bool getPointCloud(const std::string& joint, const std::string& topic,
+      bool getPointCloud(const std::string& octreeFrame,
+			 const std::string& topic,
+			 const std::string& sensorFrame,
+			 value_type resolution, const vector_t& configuration,
 			 value_type timeOut);
       /// Callback to the point cloud topic
       void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data);
@@ -75,16 +78,21 @@ namespace hpp {
       ~PointCloud();
     private:
       /// Constructor
-      PointCloud(const DevicePtr_t& device): device_ (device),
-					     waitingForData_(false),
-					     handle_(0x0)
-      {}
+      PointCloud(const ProblemSolverPtr_t& ps);
       void init (const PointCloudWkPtr_t)
       {}
-      DevicePtr_t device_;
+      void attachOctreeToRobot
+      (const OcTreePtr_t& octree, const std::string& octreeFrame,
+       const std::string& sensorFrame, const vector_t& configuration);
+      bool displayOctree(const OcTreePtr_t& octree,
+			 const std::string& octreeFrame,
+			 const Transform3f& jMoctree);
+      ProblemSolverPtr_t problemSolver_;
       bool waitingForData_;
       boost::mutex mutex_;
       ros::NodeHandle* handle_;
+      PointMatrix_t points_;
+
     }; // class PointCloud
   } // namespace agimus
 } // namespace hpp
