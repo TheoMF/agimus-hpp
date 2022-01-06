@@ -81,17 +81,23 @@ namespace hpp {
       PointCloud(const ProblemSolverPtr_t& ps);
       void init (const PointCloudWkPtr_t)
       {}
+      /// Express point cloud in octreeFrame
+      void movePointCloud(const std::string& octreeFrame,
+			  const std::string& sensorFrame,
+			  const vector_t& configuration);
+
+      /// Remove GeometryObject with given name from model if any
+      void removeObject(const std::string& name);
       void attachOctreeToRobot
-      (const OcTreePtr_t& octree, const std::string& octreeFrame,
-       const std::string& sensorFrame, const vector_t& configuration);
+      (const OcTreePtr_t& octree, const std::string& octreeFrame);
       bool displayOctree(const OcTreePtr_t& octree,
-			 const std::string& octreeFrame,
-			 const Transform3f& jMoctree);
+			 const std::string& octreeFrame);
       ProblemSolverPtr_t problemSolver_;
       bool waitingForData_;
       boost::mutex mutex_;
       ros::NodeHandle* handle_;
-      PointMatrix_t points_;
+      PointMatrix_t pointsInSensorFrame_;
+      PointMatrix_t pointsInLinkFrame_;
 
     }; // class PointCloud
   } // namespace agimus

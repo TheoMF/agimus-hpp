@@ -52,20 +52,6 @@
 namespace hpp {
   namespace agimus {
 
-#ifdef CLIENT_TO_GEPETTO_VIEWER
-    static void toGepettoTransform (const Transform3f& in,
-				    gepetto::corbaserver::Transform out)
-    {
-      Transform3f::Quaternion q (in.rotation());
-      out[3] = (float)q.x();
-      out[4] = (float)q.y();
-      out[5] = (float)q.z();
-      out[6] = (float)q.w();
-      for(int i=0; i<3; i++)
-        out[i] = (float)in.translation() [i];
-    }
-#endif
-
     PointCloud::~PointCloud()
     {
       shutdownRos();
@@ -123,9 +109,13 @@ namespace hpp {
 	waitingForData_ = false;
 	return false;
       }
+      // Express point cloud in octreeFrame frame
+      movePointCloud(octreeFrame, sensorFrame, configuration);
+
       // build octree
-      hpp::fcl::OcTreePtr_t octree(hpp::fcl::makeOctree(points_, resolution));
-      attachOctreeToRobot(octree, octreeFrame, sensorFrame, configuration);
+      hpp::fcl::OcTreePtr_t octree(hpp::fcl::makeOctree(pointsInLinkFrame_,
+							resolution));
+      attachOctreeToRobot(octree, octreeFrame);
       return true;
     }
 
@@ -166,14 +156,14 @@ namespace hpp {
       checkFields(data->fields);
       uint32_t iPoint = 0;
       const uint8_t* ptr = &(data->data[0]);
-      points_.resize(data->height * data->width, 3);
+      pointsInSensorFrame_.resize(data->height * data->width, 3);
       for (uint32_t row=0; row < data->height; ++row) {
 	for (uint32_t col=0; col < data->width; ++col) {
-	  points_(iPoint, 0) = (double)(*(const float*)
+	  pointsInSensorFrame_(iPoint, 0) = (double)(*(const float*)
 					(ptr+data->fields[0].offset));
-	  points_(iPoint, 1) = (double)(*(const float*)
+	  pointsInSensorFrame_(iPoint, 1) = (double)(*(const float*)
 					(ptr+data->fields[1].offset));
-	  points_(iPoint, 2) = (double)(*(const float*)
+	  pointsInSensorFrame_(iPoint, 2) = (double)(*(const float*)
 					(ptr+data->fields[2].offset));
 	  ++iPoint;
 	  ptr+=data->point_step;
@@ -187,9 +177,9 @@ namespace hpp {
       handle_(0x0)
       {}
 
-    void PointCloud::attachOctreeToRobot
-    (const OcTreePtr_t& octree, const std::string& octreeFrame,
-     const std::string& sensorFrame, const vector_t& configuration)
+    void PointCloud::movePointCloud(const std::string& octreeFrame,
+				    const std::string& sensorFrame,
+				    const vector_t& configuration)
     {
       // Compute forward kinematics for input configuration
       const DevicePtr_t& robot (problemSolver_->robot());
@@ -208,9 +198,37 @@ namespace hpp {
       std::string name(octreeFrame + std::string("/octree"));
       // Add a GeometryObject to the GeomtryModel
       ::pinocchio::Frame pinOctreeFrame(robot->model().frames[of.index()]);
+      pointsInLinkFrame_.resize(pointsInSensorFrame_.rows(), 3);
+      Transform3f M(pinOctreeFrame.placement*oMs);
+      for (size_type r=0; r < pointsInSensorFrame_.rows(); ++r){
+	vector3_t x(pointsInSensorFrame_.row(r));
+	pointsInLinkFrame_.row(r) = M.actOnEigenObject(x);
+      }
+    }
+
+    void PointCloud::removeObject(const std::string& name)
+    {
+      const DevicePtr_t& robot (problemSolver_->robot());
+      std::remove_if(robot->geomModel().geometryObjects.begin(),
+		     robot->geomModel().geometryObjects.end(),
+		     [&name](const ::pinocchio::GeometryObject& go){
+		       return go.name == name;
+		     });
+    }
+
+    void PointCloud::attachOctreeToRobot
+    (const OcTreePtr_t& octree, const std::string& octreeFrame)
+    {
+      const DevicePtr_t& robot (problemSolver_->robot());
+      Frame of(robot->getFrameByName(octreeFrame));
+      std::string name(octreeFrame + std::string("/octree"));
+      // Add a GeometryObject to the GeomtryModel
+      ::pinocchio::Frame pinOctreeFrame(robot->model().frames[of.index()]);
+      // Before adding octree, remove previously inserted one
+      removeObject(name);
       ::pinocchio::GeometryObject go
 	  (name,std::numeric_limits<FrameIndex>::max(), pinOctreeFrame.parent,
-	   octree, pinOctreeFrame.placement*oMs);
+	   octree, Transform3f::Identity());
       robot->geomModel().addGeometryObject(go);
       // Invalidate constraint graph to force reinitialization before using
       // PathValidation instances stored in the edges.
@@ -220,12 +238,12 @@ namespace hpp {
       if (problemSolver_->problem())
 	problemSolver_->resetProblem();
       // Display point cloud in gepetto-gui.
-      displayOctree(octree, octreeFrame, oMs);
+      displayOctree(octree, octreeFrame);
     }
+
 #ifdef CLIENT_TO_GEPETTO_VIEWER
     bool PointCloud::displayOctree
-    (const OcTreePtr_t& octree, const std::string& octreeFrame,
-     const Transform3f& Moctree)
+    (const OcTreePtr_t& octree, const std::string& octreeFrame)
     {
       std::string prefix("robot/");
       // Connect to gepetto-gui without raising exception
@@ -233,10 +251,13 @@ namespace hpp {
       gepetto::corbaserver::GraphicalInterface_var gui
 	(gepetto::viewer::corba::gui());
       std::string groupName(prefix + octreeFrame + std::string("/octree"));
+      // If node already exists, remove it
+      if (gui->nodeExists(groupName.c_str())){
+	gui->deleteNode(groupName.c_str(), true);
+      }
       gui->createGroup(groupName.c_str());
       //gui->addToGroup(nodeName.c_str(), octreeFrame.c_str());
-      gepetto::corbaserver::Transform pose;
-      toGepettoTransform(Moctree, pose);
+      gepetto::corbaserver::Transform pose={0,0,0,0,0,0,1};
       gui->applyConfiguration(groupName.c_str(), pose);
       std::vector<boost::array<value_type, 6> > boxes(octree->toBoxes());
       std::size_t boxId = 0;

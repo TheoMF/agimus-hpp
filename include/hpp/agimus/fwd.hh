@@ -34,7 +34,7 @@
 
 namespace hpp{
 namespace agimus{
-  
+
   typedef pinocchio::DevicePtr_t DevicePtr_t;
   typedef pinocchio::Frame Frame;
   typedef pinocchio::FrameIndex FrameIndex;
@@ -42,6 +42,7 @@ namespace agimus{
   typedef pinocchio::JointPtr_t JointPtr_t;
   typedef pinocchio::size_type size_type;
   typedef pinocchio::Transform3f Transform3f;
+  typedef pinocchio::vector3_t vector3_t;
   typedef pinocchio::value_type value_type;
   typedef pinocchio::vector_t vector_t;
   typedef manipulation::ProblemSolverPtr_t ProblemSolverPtr_t;
