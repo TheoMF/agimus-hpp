@@ -119,6 +119,16 @@ namespace hpp {
       return true;
     }
 
+    void PointCloud::setDistanceBounds(value_type min, value_type max)
+    {
+      minDistance_ = min; maxDistance_ = max;
+    }
+
+    void PointCloud::setDisplay(bool flag)
+    {
+      display_ = flag;
+    }
+
     void checkFields(const std::vector<sensor_msgs::PointField>& fields)
     {
       // Check that number of fields is at least 3
@@ -157,6 +167,8 @@ namespace hpp {
       uint32_t iPoint = 0;
       const uint8_t* ptr = &(data->data[0]);
       pointsInSensorFrame_.resize(data->height * data->width, 3);
+      value_type m2(minDistance_*minDistance_);
+      value_type M2(maxDistance_*maxDistance_);
       for (uint32_t row=0; row < data->height; ++row) {
 	for (uint32_t col=0; col < data->width; ++col) {
 	  pointsInSensorFrame_(iPoint, 0) = (double)(*(const float*)
@@ -165,16 +177,21 @@ namespace hpp {
 					(ptr+data->fields[1].offset));
 	  pointsInSensorFrame_(iPoint, 2) = (double)(*(const float*)
 					(ptr+data->fields[2].offset));
-	  ++iPoint;
+	  // Keep point only if included in distance interval
+	  if ((m2 <= pointsInSensorFrame_.row(iPoint).squaredNorm())
+	      &&(pointsInSensorFrame_.row(iPoint).squaredNorm() <= M2))
+	    ++iPoint;
 	  ptr+=data->point_step;
 	}
       }
+      pointsInSensorFrame_.conservativeResize(iPoint, 3);
     }
 
     PointCloud::PointCloud(const ProblemSolverPtr_t& ps):
       problemSolver_ (ps),
       waitingForData_(false),
-      handle_(0x0)
+      handle_(0x0), minDistance_(0), maxDistance_
+      (std::numeric_limits<value_type>::infinity()), display_(true)
       {}
 
     void PointCloud::movePointCloud(const std::string& octreeFrame,
@@ -237,8 +254,10 @@ namespace hpp {
       // Initialize problem to take into account new object.
       if (problemSolver_->problem())
 	problemSolver_->resetProblem();
-      // Display point cloud in gepetto-gui.
-      displayOctree(octree, octreeFrame);
+      if (display_){
+	// Display point cloud in gepetto-gui.
+	displayOctree(octree, octreeFrame);
+      }
     }
 
 #ifdef CLIENT_TO_GEPETTO_VIEWER

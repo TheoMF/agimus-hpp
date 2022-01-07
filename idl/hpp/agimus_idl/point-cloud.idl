@@ -55,7 +55,13 @@ module hpp {
 			    in string sensorFrame,
 			    in double resolution, in floatSeq configuration,
 			    in double timeOut)
-      raises (Error);
+	raises (Error);
+
+      /// Set bounds on distance of points to sensor
+      /// Points at a distance outside this interval are ignored.
+      void setDistanceBounds(in double min, in double max) raises(Error);
+      /// Set whether to display octree in gepetto-viewer
+      void setDisplay(in boolean flag) raises(Error);
     }; // interface PointCloud
   }; // module agimus_idl
 }; // module hpp

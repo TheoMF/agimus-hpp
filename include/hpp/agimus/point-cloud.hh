@@ -72,6 +72,11 @@ namespace hpp {
 			 const std::string& sensorFrame,
 			 value_type resolution, const vector_t& configuration,
 			 value_type timeOut);
+      /// Set bounds on distance of points to sensor
+      /// Points at a distance outside this interval are ignored.
+      void setDistanceBounds(value_type min, value_type max);
+      /// Set whether to display octree in gepetto-viewer
+      void setDisplay(bool flag);
       /// Callback to the point cloud topic
       void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data);
       /// Shut down ROS
@@ -98,6 +103,8 @@ namespace hpp {
       ros::NodeHandle* handle_;
       PointMatrix_t pointsInSensorFrame_;
       PointMatrix_t pointsInLinkFrame_;
+      value_type minDistance_, maxDistance_;
+      bool display_;
 
     }; // class PointCloud
   } // namespace agimus
