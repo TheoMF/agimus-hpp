@@ -38,6 +38,7 @@ namespace agimus{
   typedef pinocchio::DevicePtr_t DevicePtr_t;
   typedef pinocchio::Frame Frame;
   typedef pinocchio::FrameIndex FrameIndex;
+  typedef pinocchio::GeomIndex GeomIndex;
   typedef pinocchio::JointIndex JointIndex;
   typedef pinocchio::JointPtr_t JointPtr_t;
   typedef pinocchio::size_type size_type;

@@ -52,6 +52,9 @@
 namespace hpp {
   namespace agimus {
 
+    typedef ::pinocchio::GeometryObject GeometryObject;
+    typedef ::pinocchio::CollisionPair CollisionPair;
+
     PointCloud::~PointCloud()
     {
       shutdownRos();
@@ -226,27 +229,63 @@ namespace hpp {
     void PointCloud::removeObject(const std::string& name)
     {
       const DevicePtr_t& robot (problemSolver_->robot());
-      std::remove_if(robot->geomModel().geometryObjects.begin(),
-		     robot->geomModel().geometryObjects.end(),
-		     [&name](const ::pinocchio::GeometryObject& go){
-		       return go.name == name;
-		     });
+      GeomIndex i=0;
+      ::pinocchio::GeometryModel::GeometryObjectVector::iterator it;
+      for (it=robot->geomModel().geometryObjects.begin();
+	   it!=robot->geomModel().geometryObjects.end(); ++it, ++i){
+	if (it->name == name){
+	  break;
+	}
+      }
+      if (it == robot->geomModel().geometryObjects.end()) return;
+      // Remove all collision pair that contain i as first or second index
+      auto newEnd = std::remove_if
+	(robot->geomModel().collisionPairs.begin(),
+	 robot->geomModel().collisionPairs.end(),
+	 [&robot, &i](const ::pinocchio::CollisionPair& cp){
+	  bool res ((cp.first == i) || (cp.second == i));
+	  return res;
+	});
+      robot->geomModel().collisionPairs.erase
+	(newEnd, robot->geomModel().collisionPairs.end());
+      robot->geomModel().geometryObjects.erase(it);
+      robot->geomModel().ngeoms--;
     }
 
     void PointCloud::attachOctreeToRobot
     (const OcTreePtr_t& octree, const std::string& octreeFrame)
     {
       const DevicePtr_t& robot (problemSolver_->robot());
-      Frame of(robot->getFrameByName(octreeFrame));
+      for (auto cp : robot->geomModel().collisionPairs){
+	assert(cp.first < robot->geomModel().geometryObjects.size());
+	assert(cp.second < robot->geomModel().geometryObjects.size());
+      }
+      const Frame& of(robot->getFrameByName(octreeFrame));
+      JointIndex octreeJointId(of.pinocchio().parent);
       std::string name(octreeFrame + std::string("/octree"));
       // Add a GeometryObject to the GeomtryModel
       ::pinocchio::Frame pinOctreeFrame(robot->model().frames[of.index()]);
       // Before adding octree, remove previously inserted one
       removeObject(name);
-      ::pinocchio::GeometryObject go
+      ::pinocchio::GeometryObject octreeGo
 	  (name,std::numeric_limits<FrameIndex>::max(), pinOctreeFrame.parent,
 	   octree, Transform3f::Identity());
-      robot->geomModel().addGeometryObject(go);
+      GeomIndex octreeGeomId(robot->geomModel().addGeometryObject(octreeGo));
+      // Add collision pairs with all objects not attached to the octree joint.
+      for (std::size_t geomId=0; geomId <
+	     robot->geomModel().geometryObjects.size(); ++geomId){
+	const GeometryObject& go(robot->geomModel().geometryObjects[geomId]);
+	if(go.parentJoint != octreeJointId){
+	  assert(octreeGeomId < robot->geomModel().geometryObjects.size());
+	  assert(geomId < robot->geomModel().geometryObjects.size());
+	  robot->geomModel().addCollisionPair(CollisionPair(octreeGeomId,
+							    geomId));
+	}
+      }
+      for (auto cp : robot->geomModel().collisionPairs){
+	assert(cp.first < robot->geomModel().geometryObjects.size());
+	assert(cp.second < robot->geomModel().geometryObjects.size());
+      }
       // Invalidate constraint graph to force reinitialization before using
       // PathValidation instances stored in the edges.
       manipulation::graph::GraphPtr_t graph(problemSolver_->constraintGraph());
