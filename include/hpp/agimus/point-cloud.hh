@@ -91,8 +91,6 @@ namespace hpp {
 			  const std::string& sensorFrame,
 			  const vector_t& configuration);
 
-      /// Remove GeometryObject with given name from model if any
-      void removeObject(const std::string& name);
       void attachOctreeToRobot
       (const OcTreePtr_t& octree, const std::string& octreeFrame);
       bool displayOctree(const OcTreePtr_t& octree,
