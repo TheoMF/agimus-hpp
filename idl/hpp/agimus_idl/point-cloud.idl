@@ -57,6 +57,16 @@ module hpp {
 			    in double timeOut)
 	raises (Error);
 
+      /// Set a point belonging and a normal vector of the plan
+      /// All points behind the plan will be filtered out
+      /// \param point point in the object plan, in the object frame
+      /// \param normalVector oriented normal of the object plan in the
+      ///        object frame (only points on the normal vector side are kept)
+      /// \param margin points at less than the margin distance
+      ///        of the plan are filtered out
+      void setObjectPlan(in string objectFrame, in floatSeq point,
+          in floatSeq normalVector, in double margin)
+	      raises (Error);
       /// Set bounds on distance of points to sensor
       /// Points at a distance outside this interval are ignored.
       void setDistanceBounds(in double min, in double max) raises(Error);

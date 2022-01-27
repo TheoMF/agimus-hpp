@@ -87,32 +87,33 @@ namespace hpp {
       handle_ = NULL;
     }
 
-    bool PointCloud::getPointCloud
-    (const std::string& octreeFrame, const std::string& topic,
-     const std::string& sensorFrame, value_type resolution,
-     const vector_t& configuration, value_type timeOut)
+    bool PointCloud::getPointCloud(
+      const std::string& octreeFrame, const std::string& topic,
+      const std::string& sensorFrame, value_type resolution,
+      const vector_t& configuration, value_type timeOut)
     {
       if (!handle_)
         throw std::logic_error ("Initialize ROS first");
       // create subscriber to topic
       waitingForData_ = false;
       ros::Subscriber subscriber = handle_->subscribe
-	(topic, 1, &PointCloud::pointCloudCb, this);
+	        (topic, 1, &PointCloud::pointCloudCb, this);
 
       waitingForData_ = true;
       value_type begin = ros::Time::now().toSec();
       while (waitingForData_) {
-	value_type now = ros::Time::now().toSec();
-	if (now - begin >= timeOut) {
-	  break;
-	}
-	ros::spinOnce();
-	ros::Duration(1e-2).sleep();
+	      value_type now = ros::Time::now().toSec();
+	      if (now - begin >= timeOut) {
+	        break;
+	      }
+	      ros::spinOnce();
+	      ros::Duration(1e-2).sleep();
       }
       if (waitingForData_) {
-	// timeout reached
-	waitingForData_ = false;
-	return false;
+        // timeout reached
+        waitingForData_ = false;
+        ROS_ERROR_STREAM("Timeout reached while waiting for topic " << topic);
+        return false;
       }
       // Express point cloud in octreeFrame frame
       movePointCloud(octreeFrame, sensorFrame, configuration);
@@ -164,6 +165,38 @@ namespace hpp {
       }
     }
 
+    bool PointCloud::filterPoint(uint32_t point_id)
+    {
+      // Keep point only if included in distance interval
+      value_type m2(minDistance_*minDistance_);
+      value_type M2(maxDistance_*maxDistance_);
+      if ((m2 > pointsInSensorFrame_.row(point_id).squaredNorm())
+          || (pointsInSensorFrame_.row(point_id).squaredNorm() > M2)) {
+            return false;
+      }
+      if (filterBehindPlan_)
+      {
+        // Keep point only if in front of the object
+        const DevicePtr_t& robot (problemSolver_->robot());
+        if(!robot){
+          throw std::logic_error
+            ("There is no robot in the ProblemSolver instance");
+        }
+        Frame of(robot->getFrameByName(objectFrame_));
+        Transform3f wMo(of.currentTransformation());
+        vector3_t currentPlaquePoint_ = wMo.actOnEigenObject(plaquePoint_);
+        vector3_t currentPlaqueNormalVector_ =
+            wMo.actOnEigenObject(plaqueNormalVector_);
+        vector3_t tmp(pointsInSensorFrame_.row(point_id));
+        vector3_t to_point = tmp - currentPlaquePoint_;
+        if (to_point.dot(currentPlaqueNormalVector_)
+            < objectPlanMargin_) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     void PointCloud::pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data)
     {
       if (!waitingForData_) return;
@@ -172,22 +205,21 @@ namespace hpp {
       uint32_t iPoint = 0;
       const uint8_t* ptr = &(data->data[0]);
       pointsInSensorFrame_.resize(data->height * data->width, 3);
-      value_type m2(minDistance_*minDistance_);
-      value_type M2(maxDistance_*maxDistance_);
       for (uint32_t row=0; row < data->height; ++row) {
-	for (uint32_t col=0; col < data->width; ++col) {
-	  pointsInSensorFrame_(iPoint, 0) = (double)(*(const float*)
-					(ptr+data->fields[0].offset));
-	  pointsInSensorFrame_(iPoint, 1) = (double)(*(const float*)
-					(ptr+data->fields[1].offset));
-	  pointsInSensorFrame_(iPoint, 2) = (double)(*(const float*)
-					(ptr+data->fields[2].offset));
-	  // Keep point only if included in distance interval
-	  if ((m2 <= pointsInSensorFrame_.row(iPoint).squaredNorm())
-	      &&(pointsInSensorFrame_.row(iPoint).squaredNorm() <= M2))
-	    ++iPoint;
-	  ptr+=data->point_step;
-	}
+        for (uint32_t col=0; col < data->width; ++col) {
+          pointsInSensorFrame_(iPoint, 0) = (double)(*(const float*)
+                (ptr+data->fields[0].offset));
+          pointsInSensorFrame_(iPoint, 1) = (double)(*(const float*)
+                (ptr+data->fields[1].offset));
+          pointsInSensorFrame_(iPoint, 2) = (double)(*(const float*)
+                (ptr+data->fields[2].offset));
+          // Keep only wanted points
+          if (filterPoint(iPoint))
+          // if ((m2 <= pointsInSensorFrame_.row(iPoint).squaredNorm())
+          //     &&(pointsInSensorFrame_.row(iPoint).squaredNorm() <= M2))
+            ++iPoint;
+          ptr+=data->point_step;
+        }
       }
       pointsInSensorFrame_.conservativeResize(iPoint, 3);
     }
@@ -196,7 +228,8 @@ namespace hpp {
       problemSolver_ (ps),
       waitingForData_(false),
       handle_(0x0), minDistance_(0), maxDistance_
-      (std::numeric_limits<value_type>::infinity()), display_(true)
+      (std::numeric_limits<value_type>::infinity()), display_(true),
+      filterBehindPlan_(false)
       {}
 
     void PointCloud::movePointCloud(const std::string& octreeFrame,
@@ -206,8 +239,8 @@ namespace hpp {
       // Compute forward kinematics for input configuration
       const DevicePtr_t& robot (problemSolver_->robot());
       if(!robot){
-	throw std::logic_error
-	  ("There is no robot in the ProblemSolver instance");
+        throw std::logic_error
+          ("There is no robot in the ProblemSolver instance");
       }
       robot->currentConfiguration(configuration);
       robot->computeFramesForwardKinematics();
@@ -223,8 +256,8 @@ namespace hpp {
       pointsInLinkFrame_.resize(pointsInSensorFrame_.rows(), 3);
       Transform3f M(pinOctreeFrame.placement*oMs);
       for (size_type r=0; r < pointsInSensorFrame_.rows(); ++r){
-	vector3_t x(pointsInSensorFrame_.row(r));
-	pointsInLinkFrame_.row(r) = M.actOnEigenObject(x);
+        vector3_t x(pointsInSensorFrame_.row(r));
+        pointsInLinkFrame_.row(r) = M.actOnEigenObject(x);
       }
     }
 
@@ -239,22 +272,22 @@ namespace hpp {
       ::pinocchio::Frame pinOctreeFrame(robot->model().frames[of.index()]);
       // Before adding octree, remove previously inserted one
       if (robot->geomModel().existGeometryName(name)) {
-	robot->geomModel().removeGeometryObject(name);
+	      robot->geomModel().removeGeometryObject(name);
       }
       ::pinocchio::GeometryObject octreeGo
-	  (name,std::numeric_limits<FrameIndex>::max(), pinOctreeFrame.parent,
-	   octree, Transform3f::Identity());
+	        (name,std::numeric_limits<FrameIndex>::max(), pinOctreeFrame.parent,
+	        octree, Transform3f::Identity());
       GeomIndex octreeGeomId(robot->geomModel().addGeometryObject(octreeGo));
       // Add collision pairs with all objects not attached to the octree joint.
       for (std::size_t geomId=0; geomId <
 	     robot->geomModel().geometryObjects.size(); ++geomId){
-	const GeometryObject& go(robot->geomModel().geometryObjects[geomId]);
-	if(go.parentJoint != octreeJointId){
-	  assert(octreeGeomId < robot->geomModel().geometryObjects.size());
-	  assert(geomId < robot->geomModel().geometryObjects.size());
-	  robot->geomModel().addCollisionPair(CollisionPair(octreeGeomId,
-							    geomId));
-	}
+	      const GeometryObject& go(robot->geomModel().geometryObjects[geomId]);
+        if(go.parentJoint != octreeJointId){
+          assert(octreeGeomId < robot->geomModel().geometryObjects.size());
+          assert(geomId < robot->geomModel().geometryObjects.size());
+          robot->geomModel().addCollisionPair(CollisionPair(octreeGeomId,
+                        geomId));
+        }
       }
       robot->createGeomData();
       // Invalidate constraint graph to force reinitialization before using
@@ -263,10 +296,10 @@ namespace hpp {
       if (graph) graph->invalidate();
       // Initialize problem to take into account new object.
       if (problemSolver_->problem())
-	problemSolver_->resetProblem();
+	      problemSolver_->resetProblem();
       if (display_){
-	// Display point cloud in gepetto-gui.
-	displayOctree(octree, octreeFrame);
+        // Display point cloud in gepetto-gui.
+        displayOctree(octree, octreeFrame);
       }
     }
 
