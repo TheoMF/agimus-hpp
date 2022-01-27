@@ -79,6 +79,22 @@ namespace hpp {
       void setDisplay(bool flag);
       /// Callback to the point cloud topic
       void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data);
+      /// Set a point belonging and a normal vector of the plan
+      /// All points behind the plan will be filtered out
+      /// \param point point in the object plan, in the object frame
+      /// \param normalVector oriented normal of the object plan in the
+      ///        object frame (only points on the normal vector side are kept)
+      /// \param margin points at less than the margin distance
+      ///        of the plan are filtered out
+      void setObjectPlan(const std::string& objectFrame, const vector3_t& point,
+          const vector3_t& normalVector, value_type margin)
+      {
+        plaquePoint_ = point;
+        plaqueNormalVector_ = normalVector;
+        objectPlanMargin_ = margin;
+        objectFrame_ = objectFrame;
+        filterBehindPlan_ = true;
+      }
       /// Shut down ROS
       ~PointCloud();
     private:
@@ -90,6 +106,8 @@ namespace hpp {
       void movePointCloud(const std::string& octreeFrame,
 			  const std::string& sensorFrame,
 			  const vector_t& configuration);
+      /// Test if a point is in the wanted range
+      bool filterPoint(uint32_t row_id);
 
       void attachOctreeToRobot
       (const OcTreePtr_t& octree, const std::string& octreeFrame);
@@ -103,6 +121,11 @@ namespace hpp {
       PointMatrix_t pointsInLinkFrame_;
       value_type minDistance_, maxDistance_;
       bool display_;
+      bool filterBehindPlan_;
+      value_type objectPlanMargin_;
+      vector3_t plaquePoint_;
+      vector3_t plaqueNormalVector_;
+      std::string objectFrame_;
 
     }; // class PointCloud
   } // namespace agimus
