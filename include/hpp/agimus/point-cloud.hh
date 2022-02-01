@@ -81,18 +81,19 @@ namespace hpp {
       void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data);
       /// Set a point belonging and a normal vector of the plan
       /// All points behind the plan will be filtered out
-      /// \param point point in the object plan, in the object frame
+      /// \param referenceFrame a reference frame
+      /// \param point point in the object plan, in the reference frame
       /// \param normalVector oriented normal of the object plan in the
-      ///        object frame (only points on the normal vector side are kept)
+      ///        reference frame (only points on the normal vector side are kept)
       /// \param margin points at less than the margin distance
       ///        of the plan are filtered out
-      void setObjectPlan(const std::string& objectFrame, const vector3_t& point,
+      void setObjectPlan(const std::string& referenceFrame, const vector3_t& point,
           const vector3_t& normalVector, value_type margin)
       {
         plaquePoint_ = point;
         plaqueNormalVector_ = normalVector;
         objectPlanMargin_ = margin;
-        objectFrame_ = objectFrame;
+        referenceFrame_ = referenceFrame;
         filterBehindPlan_ = true;
       }
       /// Shut down ROS
@@ -125,7 +126,8 @@ namespace hpp {
       value_type objectPlanMargin_;
       vector3_t plaquePoint_;
       vector3_t plaqueNormalVector_;
-      std::string objectFrame_;
+      std::string referenceFrame_;
+      std::string sensorFrame_;
 
     }; // class PointCloud
   } // namespace agimus

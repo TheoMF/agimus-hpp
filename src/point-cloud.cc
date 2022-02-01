@@ -94,6 +94,7 @@ namespace hpp {
     {
       if (!handle_)
         throw std::logic_error ("Initialize ROS first");
+      sensorFrame_ = sensorFrame;
       // create subscriber to topic
       waitingForData_ = false;
       ros::Subscriber subscriber = handle_->subscribe
@@ -182,14 +183,17 @@ namespace hpp {
           throw std::logic_error
             ("There is no robot in the ProblemSolver instance");
         }
-        Frame of(robot->getFrameByName(objectFrame_));
+        Frame of(robot->getFrameByName(referenceFrame_)); // reference frame
         Transform3f wMo(of.currentTransformation());
-        vector3_t currentPlaquePoint_ = wMo.actOnEigenObject(plaquePoint_);
-        vector3_t currentPlaqueNormalVector_ =
-            wMo.actOnEigenObject(plaqueNormalVector_);
+        Frame cf(robot->getFrameByName(sensorFrame_)); // camera_frame
+        Transform3f wMc(cf.currentTransformation());
+        vector3_t wP = wMo.actOnEigenObject(plaquePoint_); // plan point in world frame
+        vector3_t cP = wMc.inverse().actOnEigenObject(wP); // plan point in camera frame
+        vector3_t wNormal = wMo.rotation()  * plaqueNormalVector_;
+        vector3_t cNormal = wMc.inverse().rotation() * wNormal;
         vector3_t tmp(pointsInSensorFrame_.row(point_id));
-        vector3_t to_point = tmp - currentPlaquePoint_;
-        if (to_point.dot(currentPlaqueNormalVector_)
+        vector3_t to_point = tmp - cP;
+        if (to_point.dot(cNormal)
             < objectPlanMargin_) {
           return false;
         }
