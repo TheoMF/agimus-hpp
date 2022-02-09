@@ -51,10 +51,11 @@ module hpp {
       ///        sensor frame.
       /// \param timeOut time after which the function returns error if no data
       ///        has been published (in seconds).
-      boolean getPointCloud(in string octreeFrame, in string topic,
+      boolean buildPointCloud(in string octreeFrame, in string topic,
 			    in string sensorFrame,
 			    in double resolution, in floatSeq configuration,
-			    in double timeOut)
+			    in double timeOut,
+			    in boolean newPointCloud)
 	raises (Error);
 
       /// Set a point belonging and a normal vector of the plan

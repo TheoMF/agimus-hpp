@@ -87,14 +87,16 @@ namespace hpp {
       handle_ = NULL;
     }
 
-    bool PointCloud::getPointCloud(
+    bool PointCloud::buildPointCloud(
       const std::string& octreeFrame, const std::string& topic,
       const std::string& sensorFrame, value_type resolution,
-      const vector_t& configuration, value_type timeOut)
+      const vector_t& configuration, value_type timeOut,
+      bool newPointCloud)
     {
       if (!handle_)
         throw std::logic_error ("Initialize ROS first");
       sensorFrame_ = sensorFrame;
+      newPointCloud_ = newPointCloud;
       // create subscriber to topic
       waitingForData_ = false;
       ros::Subscriber subscriber = handle_->subscribe
@@ -166,13 +168,13 @@ namespace hpp {
       }
     }
 
-    bool PointCloud::filterPoint(uint32_t point_id)
+    bool PointCloud::filterPoint(uint32_t pointcloud_id, uint32_t point_id)
     {
       // Keep point only if included in distance interval
       value_type m2(minDistance_*minDistance_);
       value_type M2(maxDistance_*maxDistance_);
-      if ((m2 > pointsInSensorFrame_.row(point_id).squaredNorm())
-          || (pointsInSensorFrame_.row(point_id).squaredNorm() > M2)) {
+      if ((m2 > pointsInSensorFrame_[pointcloud_id].row(point_id).squaredNorm())
+          || (pointsInSensorFrame_[pointcloud_id].row(point_id).squaredNorm() > M2)) {
             return false;
       }
       if (filterBehindPlan_)
@@ -191,7 +193,7 @@ namespace hpp {
         vector3_t cP = wMc.inverse().actOnEigenObject(wP); // plan point in camera frame
         vector3_t wNormal = wMo.rotation()  * plaqueNormalVector_;
         vector3_t cNormal = wMc.inverse().rotation() * wNormal;
-        vector3_t tmp(pointsInSensorFrame_.row(point_id));
+        vector3_t tmp(pointsInSensorFrame_[pointcloud_id].row(point_id));
         vector3_t to_point = tmp - cP;
         if (to_point.dot(cNormal)
             < objectPlanMargin_) {
@@ -206,26 +208,34 @@ namespace hpp {
       if (!waitingForData_) return;
       waitingForData_ = false;
       checkFields(data->fields);
+
+      uint32_t pc_id = 0;
+      if (newPointCloud_) {
+        pointsInSensorFrame_.clear();
+      }
+      else {
+        pc_id = (uint32_t)pointsInSensorFrame_.size();
+      }
       uint32_t iPoint = 0;
       const uint8_t* ptr = &(data->data[0]);
-      pointsInSensorFrame_.resize(data->height * data->width, 3);
+      pointsInSensorFrame_.push_back(PointMatrix_t ());
+      pointsInSensorFrame_[pc_id].resize(data->height * data->width, 3);
+
       for (uint32_t row=0; row < data->height; ++row) {
         for (uint32_t col=0; col < data->width; ++col) {
-          pointsInSensorFrame_(iPoint, 0) = (double)(*(const float*)
+          pointsInSensorFrame_[pc_id](iPoint, 0) = (double)(*(const float*)
                 (ptr+data->fields[0].offset));
-          pointsInSensorFrame_(iPoint, 1) = (double)(*(const float*)
+          pointsInSensorFrame_[pc_id](iPoint, 1) = (double)(*(const float*)
                 (ptr+data->fields[1].offset));
-          pointsInSensorFrame_(iPoint, 2) = (double)(*(const float*)
+          pointsInSensorFrame_[pc_id](iPoint, 2) = (double)(*(const float*)
                 (ptr+data->fields[2].offset));
           // Keep only wanted points
-          if (filterPoint(iPoint))
-          // if ((m2 <= pointsInSensorFrame_.row(iPoint).squaredNorm())
-          //     &&(pointsInSensorFrame_.row(iPoint).squaredNorm() <= M2))
+          if (filterPoint(pc_id, iPoint))
             ++iPoint;
           ptr+=data->point_step;
         }
       }
-      pointsInSensorFrame_.conservativeResize(iPoint, 3);
+      pointsInSensorFrame_[pc_id].conservativeResize(iPoint, 3);
     }
 
     PointCloud::PointCloud(const ProblemSolverPtr_t& ps):
@@ -233,7 +243,8 @@ namespace hpp {
       waitingForData_(false),
       handle_(0x0), minDistance_(0), maxDistance_
       (std::numeric_limits<value_type>::infinity()), display_(true),
-      filterBehindPlan_(false)
+      filterBehindPlan_(false),
+      newPointCloud_(false)
       {}
 
     void PointCloud::movePointCloud(const std::string& octreeFrame,
@@ -257,11 +268,21 @@ namespace hpp {
       std::string name(octreeFrame + std::string("/octree"));
       // Add a GeometryObject to the GeomtryModel
       ::pinocchio::Frame pinOctreeFrame(robot->model().frames[of.index()]);
-      pointsInLinkFrame_.resize(pointsInSensorFrame_.rows(), 3);
+      // Move the points from the latest added pointsInSensorFrame_ element
+      size_type before_size = 0;
+      if (newPointCloud_) { // The existing points are replaced by the new points
+        pointsInLinkFrame_.resize(pointsInSensorFrame_.back().rows(), 3);
+
+      }
+      else { // The existing points are kept and the new points are added
+        before_size = pointsInLinkFrame_.rows();
+        size_type new_size = before_size + pointsInSensorFrame_.back().rows();
+        pointsInLinkFrame_.conservativeResize(new_size,3);
+      }
       Transform3f M(pinOctreeFrame.placement*oMs);
-      for (size_type r=0; r < pointsInSensorFrame_.rows(); ++r){
-        vector3_t x(pointsInSensorFrame_.row(r));
-        pointsInLinkFrame_.row(r) = M.actOnEigenObject(x);
+      for (size_type r=0; r < pointsInSensorFrame_.back().rows(); ++r){
+        vector3_t x(pointsInSensorFrame_.back().row(r));
+        pointsInLinkFrame_.row(before_size + r) = M.actOnEigenObject(x);
       }
     }
 

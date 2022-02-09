@@ -67,11 +67,12 @@ namespace hpp {
       ///        sensor frame.
       /// \param timeOut time after which the function returns error if no data
       ///        has been published (in seconds).
-      bool getPointCloud(const std::string& octreeFrame,
+      bool buildPointCloud(const std::string& octreeFrame,
 			 const std::string& topic,
 			 const std::string& sensorFrame,
 			 value_type resolution, const vector_t& configuration,
-			 value_type timeOut);
+			 value_type timeOut,
+			 bool newPointCloud);
       /// Set bounds on distance of points to sensor
       /// Points at a distance outside this interval are ignored.
       void setDistanceBounds(value_type min, value_type max);
@@ -108,7 +109,7 @@ namespace hpp {
 			  const std::string& sensorFrame,
 			  const vector_t& configuration);
       /// Test if a point is in the wanted range
-      bool filterPoint(uint32_t row_id);
+      bool filterPoint(uint32_t pointcloud_id, uint32_t row_id);
 
       void attachOctreeToRobot
       (const OcTreePtr_t& octree, const std::string& octreeFrame);
@@ -118,7 +119,9 @@ namespace hpp {
       bool waitingForData_;
       boost::mutex mutex_;
       ros::NodeHandle* handle_;
-      PointMatrix_t pointsInSensorFrame_;
+
+      // Vector of the different point clouds measured
+      std::vector<PointMatrix_t> pointsInSensorFrame_;
       PointMatrix_t pointsInLinkFrame_;
       value_type minDistance_, maxDistance_;
       bool display_;
@@ -128,6 +131,7 @@ namespace hpp {
       vector3_t plaqueNormalVector_;
       std::string referenceFrame_;
       std::string sensorFrame_;
+      bool newPointCloud_;
 
     }; // class PointCloud
   } // namespace agimus
