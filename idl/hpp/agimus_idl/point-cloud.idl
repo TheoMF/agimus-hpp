@@ -57,17 +57,25 @@ module hpp {
 			    in double timeOut,
 			    in boolean newPointCloud)
 	raises (Error);
-
-      /// Set a point belonging and a normal vector of the plan
-      /// All points behind the plan will be filtered out
-      /// \param point point in the object plan, in the object frame
-      /// \param normalVector oriented normal of the object plan in the
-      ///        object frame (only points on the normal vector side are kept)
-      /// \param margin points at less than the margin distance
-      ///        of the plan are filtered out
-      void setObjectPlan(in string objectFrame, in floatSeq point,
-          in floatSeq normalVector, in double margin)
+      /// Set three points belonging to the object plan, in the object frame
+      /// The (oriented) normal will be computed as $AB \times AC$ and
+      /// all points behind the plan will be filtered out.
+      /// The margin is set to 0.
+      /// \param pointA point in the object plan, in the reference frame
+      /// \param pointB point in the object plan, in the reference frame
+      /// \param pointC point in the object plan, in the reference frame
+      void setObjectPlan(in floatSeq pointA,
+                         in floatSeq pointB,
+                         in floatSeq pointC)
 	      raises (Error);
+      /// Stop filtering the points behind the object plan
+      void removeObjectPlan()
+	      raises (Error);
+      /// Set the margin behind which the points of the
+      /// point cloud get filtered out
+      void setObjectPlanMargin(in double margin)
+        raises (Error);
+
       /// Set bounds on distance of points to sensor
       /// Points at a distance outside this interval are ignored.
       void setDistanceBounds(in double min, in double max) raises(Error);

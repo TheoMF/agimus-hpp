@@ -80,23 +80,38 @@ namespace hpp {
       void setDisplay(bool flag);
       /// Callback to the point cloud topic
       void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data);
-      /// Set a point belonging and a normal vector of the plan
-      /// All points behind the plan will be filtered out
-      /// \param referenceFrame a reference frame
-      /// \param point point in the object plan, in the reference frame
-      /// \param normalVector oriented normal of the object plan in the
-      ///        reference frame (only points on the normal vector side are kept)
+      /// Set three points belonging to the object plan, in the object frame
+      /// The (oriented) normal will be computed as $AC \times AB$ and
+      /// all points behind the plan will be filtered out.
+      /// The margin is set to 0.
+      /// \param pointA point in the object plan, in the reference frame
+      /// \param pointB point in the object plan, in the reference frame
+      /// \param pointC point in the object plan, in the reference frame
+      void setObjectPlan(const vector3_t& pointA,
+                         const vector3_t& pointB,
+                         const vector3_t& pointC)
+      {
+        plaquePoint_ = pointA;
+        plaqueNormalVector_ = (pointC - pointA).cross(pointB - pointA);
+        plaqueNormalVector_ = plaqueNormalVector_ / plaqueNormalVector_.norm();
+        filterBehindPlan_ = true;
+        objectPlanMargin_ = 0;
+      }
+      /// Stop filtering the points behind the object plan
+      void removeObjectPlan()
+      {
+        filterBehindPlan_ = false;
+      }
+      /// Set the margin behind which the points of the
+      /// point cloud get filtered out
       /// \param margin points at less than the margin distance
       ///        of the plan are filtered out
-      void setObjectPlan(const std::string& referenceFrame, const vector3_t& point,
-          const vector3_t& normalVector, value_type margin)
+      void setObjectPlanMargin(value_type margin)
       {
-        plaquePoint_ = point;
-        plaqueNormalVector_ = normalVector;
         objectPlanMargin_ = margin;
-        referenceFrame_ = referenceFrame;
-        filterBehindPlan_ = true;
       }
+
+
       /// Shut down ROS
       ~PointCloud();
     private:
@@ -127,9 +142,11 @@ namespace hpp {
       bool display_;
       bool filterBehindPlan_;
       value_type objectPlanMargin_;
+      // Point in the object plan, expressed in the object frame
       vector3_t plaquePoint_;
+      // Normal to the object plan in the object frame
       vector3_t plaqueNormalVector_;
-      std::string referenceFrame_;
+      std::string octreeFrame_;
       std::string sensorFrame_;
       bool newPointCloud_;
 

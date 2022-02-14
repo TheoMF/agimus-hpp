@@ -95,6 +95,7 @@ namespace hpp {
     {
       if (!handle_)
         throw std::logic_error ("Initialize ROS first");
+      octreeFrame_ = octreeFrame;
       sensorFrame_ = sensorFrame;
       newPointCloud_ = newPointCloud;
       // create subscriber to topic
@@ -185,14 +186,14 @@ namespace hpp {
           throw std::logic_error
             ("There is no robot in the ProblemSolver instance");
         }
-        Frame of(robot->getFrameByName(referenceFrame_)); // reference frame
+        Frame of(robot->getFrameByName(octreeFrame_)); // object frame
         Transform3f wMo(of.currentTransformation());
         Frame cf(robot->getFrameByName(sensorFrame_)); // camera_frame
         Transform3f wMc(cf.currentTransformation());
         vector3_t wP = wMo.actOnEigenObject(plaquePoint_); // plan point in world frame
         vector3_t cP = wMc.inverse().actOnEigenObject(wP); // plan point in camera frame
-        vector3_t wNormal = wMo.rotation()  * plaqueNormalVector_;
-        vector3_t cNormal = wMc.inverse().rotation() * wNormal;
+        vector3_t wNormal = wMo.rotation()  * plaqueNormalVector_; // plan normal in world frame
+        vector3_t cNormal = wMc.inverse().rotation() * wNormal; // plan normal in camera frame
         vector3_t tmp(pointsInSensorFrame_[pointcloud_id].row(point_id));
         vector3_t to_point = tmp - cP;
         if (to_point.dot(cNormal)
@@ -244,6 +245,7 @@ namespace hpp {
       handle_(0x0), minDistance_(0), maxDistance_
       (std::numeric_limits<value_type>::infinity()), display_(true),
       filterBehindPlan_(false),
+      objectPlanMargin_(0),
       newPointCloud_(false)
       {}
 
