@@ -35,7 +35,7 @@ OMNIIDL_INCLUDE_DIRECTORIES(
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/src)
 
 MAKE_DIRECTORY(${CMAKE_BINARY_DIR}/src/hpp/agimus_idl)
-FOREACH(IDL server discretization)
+FOREACH(IDL server discretization point-cloud)
   GENERATE_IDL_CPP (hpp/agimus_idl/${IDL} ${CMAKE_SOURCE_DIR}/idl/hpp/agimus_idl
     HEADER_SUFFIX -idl.hh)
   GENERATE_IDL_PYTHON (${IDL} ${CMAKE_SOURCE_DIR}/idl/hpp/agimus_idl
@@ -53,6 +53,12 @@ FOREACH(IDL server discretization)
 ENDFOREACH()
 
 GENERATE_IDL_CPP_IMPL (hpp/agimus_idl/discretization ${CMAKE_SOURCE_DIR}/idl/hpp/agimus_idl
+  ARGUMENTS
+  -Wbguard_prefix=hpp_agimus_idl
+  -Wbinc_prefix=hpp/agimus_idl
+  HH_SUFFIX -idl.hh)
+
+GENERATE_IDL_CPP_IMPL (hpp/agimus_idl/point-cloud ${CMAKE_SOURCE_DIR}/idl/hpp/agimus_idl
   ARGUMENTS
   -Wbguard_prefix=hpp_agimus_idl
   -Wbinc_prefix=hpp/agimus_idl
@@ -90,15 +96,29 @@ ADD_CUSTOM_TARGET(generate_idl_cpp DEPENDS ${ALL_IDL_CPP_STUBS} ${ALL_IDL_CPP_IM
 ADD_CUSTOM_TARGET(generate_idl_python DEPENDS ${ALL_IDL_PYTHON_STUBS})
 
 IF(BUILD_HPP_PLUGIN)
-  HPP_ADD_SERVER_PLUGIN(agimus-hpp
-    SOURCES
+  SET(AGIMUS_HPP_PLUGIN_SOURCES
     server.cc
     discretization.cc
+    point-cloud.cc
     ${ALL_IDL_CPP_STUBS}
     ${ALL_IDL_CPP_IMPL_STUBS}
-    LINK_DEPENDENCIES PUBLIC hpp-corbaserver::hpp-corbaserver
-    PKG_CONFIG_DEPENDENCIES omniORB4 roscpp dynamic_graph_bridge_msgs)
+    )
 
+  IF(CLIENT_TO_GEPETTO_VIEWER)
+    ADD_DEFINITIONS(-DCLIENT_TO_GEPETTO_VIEWER)
+    HPP_ADD_SERVER_PLUGIN(agimus-hpp
+      SOURCES ${AGIMUS_HPP_PLUGIN_SOURCES}
+      LINK_DEPENDENCIES PUBLIC hpp-corbaserver::hpp-corbaserver
+      hpp-manipulation::hpp-manipulation
+      gepetto-viewer-corba::gepetto-viewer-corba
+      PKG_CONFIG_DEPENDENCIES omniORB4 roscpp dynamic_graph_bridge_msgs)
+  ELSE()
+    HPP_ADD_SERVER_PLUGIN(agimus-hpp
+      SOURCES ${AGIMUS_HPP_PLUGIN_SOURCES}
+      LINK_DEPENDENCIES PUBLIC hpp-corbaserver::hpp-corbaserver
+      hpp-manipulation::hpp-manipulation
+      PKG_CONFIG_DEPENDENCIES omniORB4 roscpp dynamic_graph_bridge_msgs)
+  ENDIF()
   ADD_DEPENDENCIES (agimus-hpp generate_idl_cpp generate_idl_python)
 ELSE(BUILD_HPP_PLUGIN)
   ADD_CUSTOM_TARGET(generate_idl ALL)

@@ -40,6 +40,8 @@
 # include <hpp/agimus_idl/server-idl.hh>
 # include <hpp/agimus_idl/discretization-idl.hh>
 # include <hpp/agimus/discretization.hh>
+# include <hpp/agimus_idl/point-cloud-idl.hh>
+# include <hpp/agimus/point-cloud.hh>
 
 namespace hpp {
   namespace agimus {
@@ -57,10 +59,12 @@ namespace hpp {
           }
 
           agimus_idl::Discretization_ptr getDiscretization ();
+          agimus_idl::PointCloud_ptr getPointCloud ();
 
         private:
           ServerPlugin* server_;
           DiscretizationPtr_t discretization_;
+          PointCloudPtr_t pointCloud_;
       };
     }
 

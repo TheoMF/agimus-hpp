@@ -32,10 +32,13 @@
 #include <hpp/core/problem-solver.hh>
 #include <hpp/corbaserver/server.hh>
 #include <hpp/corbaserver/servant-base.hh>
+#include <hpp/manipulation/problem-solver.hh>
 
 #include "hpp/agimus_idl/discretization.hh"
-
 #include <hpp/agimus/discretization.hh>
+
+#include "hpp/agimus_idl/point-cloud.hh"
+#include <hpp/agimus/point-cloud.hh>
 
 namespace hpp {
   namespace agimus {
@@ -51,6 +54,26 @@ namespace hpp {
         servant->persistantStorage(false);
 
         return corbaServer::makeServant<agimus_idl::Discretization_ptr>
+          (server_->parent(), servant);
+      }
+
+      agimus_idl::PointCloud_ptr Server::getPointCloud ()
+      {
+	manipulation::ProblemSolverPtr_t ps
+	  (dynamic_cast<manipulation::ProblemSolverPtr_t>
+	   (server_->problemSolver()));
+	if (!ps){
+	  throw std::invalid_argument("ProblemSolver instance is not of type "
+				      "hpp::manipulation::ProblemSolver.");
+	}
+        pointCloud_ =
+          PointCloud::create (ps);
+
+        agimus_impl::PointCloud* servant =
+          new agimus_impl::PointCloud (server_->parent(), pointCloud_);
+        servant->persistantStorage(false);
+
+        return corbaServer::makeServant<agimus_idl::PointCloud_ptr>
           (server_->parent(), servant);
       }
 

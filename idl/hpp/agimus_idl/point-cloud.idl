@@ -1,0 +1,89 @@
+// Copyright 2021, 2022, CNRS, Airbus SAS
+
+// Author: Florent Lamiraux
+
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+
+// 2. Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following
+// disclaimer in the documentation and/or other materials provided
+// with the distribution.
+
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+// COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+// INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+// HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+// OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#ifndef HPP_AGIMUS_IDL_POINT_CLOUD_IDL
+#define HPP_AGIMUS_IDL_POINT_CLOUD_IDL
+
+#include <hpp/common.idl>
+
+module hpp {
+  module agimus_idl {
+    interface PointCloud {
+      HPP_EXPOSE_MEMORY_DEALLOCATION(Error)
+      boolean initializeRosNode (in string name, in boolean anonymous)
+      raises (Error);
+      void    shutdownRos () raises (Error);
+      /// Build an octree from a point cloud read on a ROS topic
+      /// \param octreeFrame frame to which the octree is attached.
+      /// \param topic name of the topic. Topic should be of type
+      ///        sensor_msgs/PointCloud2
+      /// \param sensorFrame name of the frame in which the point cloud is
+      ///        expressed.
+      /// \param resolution resolution of the Octree built from the point cloud.
+      /// \param configuration configuration of the system. Used to compute the
+      ///        pose of the joint holding the octree with respect to the
+      ///        sensor frame.
+      /// \param timeOut time after which the function returns error if no data
+      ///        has been published (in seconds).
+      boolean buildPointCloud(in string octreeFrame, in string topic,
+			    in string sensorFrame,
+			    in double resolution, in floatSeq configuration,
+			    in double timeOut,
+			    in boolean newPointCloud)
+	raises (Error);
+      /// Set three points belonging to the object plan, in the object frame
+      /// The (oriented) normal will be computed as $AB \times AC$ and
+      /// all points behind the plan will be filtered out.
+      /// The margin is set to 0.
+      /// \param pointA point in the object plan, in the reference frame
+      /// \param pointB point in the object plan, in the reference frame
+      /// \param pointC point in the object plan, in the reference frame
+      void setObjectPlan(in floatSeq pointA,
+                         in floatSeq pointB,
+                         in floatSeq pointC)
+	      raises (Error);
+      /// Stop filtering the points behind the object plan
+      void removeObjectPlan()
+	      raises (Error);
+      /// Set the margin behind which the points of the
+      /// point cloud get filtered out
+      void setObjectPlanMargin(in double margin)
+        raises (Error);
+
+      /// Set bounds on distance of points to sensor
+      /// Points at a distance outside this interval are ignored.
+      void setDistanceBounds(in double min, in double max) raises(Error);
+      /// Set whether to display octree in gepetto-viewer
+      void setDisplay(in boolean flag) raises(Error);
+    }; // interface PointCloud
+  }; // module agimus_idl
+}; // module hpp
+//* #include <hpp/agimus/point-cloud.hh>
+
+#endif // HPP_AGIMUS_IDL_POINT_CLOUD_IDL
