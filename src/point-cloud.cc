@@ -129,6 +129,11 @@ namespace hpp {
       return true;
     }
 
+    void PointCloud::removeOctree(const std::string&)
+    {
+      ROS_DEBUG_STREAM("Method PointCloud::removeOctree is not implemented.");
+    }
+
     void PointCloud::setDistanceBounds(value_type min, value_type max)
     {
       minDistance_ = min; maxDistance_ = max;

@@ -73,6 +73,10 @@ namespace hpp {
 			 value_type resolution, const vector_t& configuration,
 			 value_type timeOut,
 			 bool newPointCloud);
+      /// Remove octree
+      /// \param name of the link that holds the octree
+      /// \warning This method is not implemented.
+      void removeOctree(const std::string& name);
       /// Set bounds on distance of points to sensor
       /// Points at a distance outside this interval are ignored.
       void setDistanceBounds(value_type min, value_type max);

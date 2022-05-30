@@ -57,6 +57,11 @@ module hpp {
 			    in double timeOut,
 			    in boolean newPointCloud)
 	raises (Error);
+      /// Remove octree
+      /// \param name of the link that holds the octree
+      /// \warning This method is not implemented.
+      void removeOctree(in string name) raises(Error);
+
       /// Set three points belonging to the object plan, in the object frame
       /// The (oriented) normal will be computed as $AB \times AC$ and
       /// all points behind the plan will be filtered out.
