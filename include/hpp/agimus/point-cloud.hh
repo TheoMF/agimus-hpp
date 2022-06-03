@@ -134,6 +134,7 @@ namespace hpp {
       (const OcTreePtr_t& octree, const std::string& octreeFrame);
       bool displayOctree(const OcTreePtr_t& octree,
 			 const std::string& octreeFrame);
+      bool undisplayOctree(const std::string& octreeFrame);
       ProblemSolverPtr_t problemSolver_;
       bool waitingForData_;
       boost::mutex mutex_;

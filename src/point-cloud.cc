@@ -129,9 +129,27 @@ namespace hpp {
       return true;
     }
 
-    void PointCloud::removeOctree(const std::string&)
+    void PointCloud::removeOctree(const std::string& octreeFrame)
     {
-      ROS_DEBUG_STREAM("Method PointCloud::removeOctree is not implemented.");
+      std::string name(octreeFrame + std::string("/octree"));
+      const DevicePtr_t& robot (problemSolver_->robot());
+      // Remove octree from pinocchio model
+      if (robot->geomModel().existGeometryName(name)) {
+        robot->geomModel().removeGeometryObject(name);
+      } else return;
+      robot->createGeomData();
+      // Invalidate constraint graph to force reinitialization before using
+      // PathValidation instances stored in the edges.
+      manipulation::graph::GraphPtr_t graph(problemSolver_->constraintGraph());
+      if (graph) graph->invalidate();
+      // Initialize problem to take into account new object.
+      if (problemSolver_->problem())
+        problemSolver_->resetProblem();
+      if (display_){
+        // Remove point cloud from gepetto-gui.
+        undisplayOctree(octreeFrame);
+      }
+
     }
 
     void PointCloud::setDistanceBounds(value_type min, value_type max)
@@ -365,9 +383,33 @@ namespace hpp {
       return true;
     }
 
+    bool PointCloud::undisplayOctree(const std::string& octreeFrame)
+    {
+      std::string prefix("robot/");
+      // Connect to gepetto-gui without raising exception
+      gepetto::viewer::corba::connect(0x0, true);
+      gepetto::corbaserver::GraphicalInterface_var gui
+	(gepetto::viewer::corba::gui());
+      std::string nodeName(prefix + octreeFrame + std::string("/octree"));
+      try {
+	// If node already exists, remove it
+	if (gui->nodeExists(nodeName.c_str())){
+	  gui->deleteNode(nodeName.c_str(), true);
+          return true;
+	}
+        return false;
+      } catch (const gepetto::Error& exc) {
+	throw std::runtime_error(exc.msg);
+      }
+    }
+
 #else
     bool PointCloud::displayOctree
     (const OcTreePtr_t& /*octree*/, const std::string& /*octreeFrame*/)
+    {
+      return true;
+    }
+    bool PointCloud::undisplayOctree(const std::string& /*octreeFrame*/)
     {
       return true;
     }
