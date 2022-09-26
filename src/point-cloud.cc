@@ -259,6 +259,8 @@ namespace hpp {
           ptr+=data->point_step;
         }
       }
+      ROS_INFO_STREAM("Used "  << iPoint << " out of "
+                      << data->height * data->width " to build point cloud.")
       pointsInSensorFrame_[pc_id].conservativeResize(iPoint, 3);
     }
 
