@@ -86,6 +86,8 @@ module hpp {
       void setDistanceBounds(in double min, in double max) raises(Error);
       /// Set whether to display octree in gepetto-viewer
       void setDisplay(in boolean flag) raises(Error);
+      /// Refresh octree in gepetto-viewer
+      void refreshOctree() raises(Error);
     }; // interface PointCloud
   }; // module agimus_idl
 }; // module hpp

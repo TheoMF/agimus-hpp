@@ -82,6 +82,8 @@ namespace hpp {
       void setDistanceBounds(value_type min, value_type max);
       /// Set whether to display octree in gepetto-viewer
       void setDisplay(bool flag);
+      /// Refresh octree in gepetto-viewer
+      void refreshOctree();
       /// Callback to the point cloud topic
       void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr& data);
       /// Set three points belonging to the object plan, in the object frame
@@ -130,10 +132,8 @@ namespace hpp {
       /// Test if a point is in the wanted range
       bool filterPoint(uint32_t pointcloud_id, uint32_t row_id);
 
-      void attachOctreeToRobot
-      (const OcTreePtr_t& octree, const std::string& octreeFrame);
-      bool displayOctree(const OcTreePtr_t& octree,
-			 const std::string& octreeFrame);
+      void attachOctreeToRobot(const std::string& octreeFrame);
+      bool displayOctree(const std::string& octreeFrame);
       bool undisplayOctree(const std::string& octreeFrame);
       ProblemSolverPtr_t problemSolver_;
       bool waitingForData_;
@@ -142,6 +142,7 @@ namespace hpp {
 
       // Vector of the different point clouds measured
       std::vector<PointMatrix_t> pointsInSensorFrame_;
+      OcTreePtr_t octree_;
       PointMatrix_t pointsInLinkFrame_;
       value_type minDistance_, maxDistance_;
       bool display_;
