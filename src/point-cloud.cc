@@ -361,6 +361,7 @@ namespace hpp {
 	      problemSolver_->resetProblem();
       if (display_){
         // Display point cloud in gepetto-gui.
+        undisplayOctree(octreeFrame);
         displayOctree(octreeFrame);
       }
     }
@@ -405,6 +406,7 @@ namespace hpp {
       try {
 	// If node already exists, remove it
 	if (gui->nodeExists(nodeName.c_str())){
+	  gui->removeObjectFromCache(nodeName.c_str());
 	  gui->deleteNode(nodeName.c_str(), true);
           return true;
 	}
