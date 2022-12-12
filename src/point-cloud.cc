@@ -123,9 +123,8 @@ namespace hpp {
       movePointCloud(octreeFrame, sensorFrame, configuration);
 
       // build octree
-      hpp::fcl::OcTreePtr_t octree(hpp::fcl::makeOctree(pointsInLinkFrame_,
-							resolution));
-      attachOctreeToRobot(octree, octreeFrame);
+      octree_ = hpp::fcl::makeOctree(pointsInLinkFrame_, resolution);
+      attachOctreeToRobot(octreeFrame);
       return true;
     }
 
@@ -149,7 +148,7 @@ namespace hpp {
         // Remove point cloud from gepetto-gui.
         undisplayOctree(octreeFrame);
       }
-
+      octree_.reset();
     }
 
     void PointCloud::setDistanceBounds(value_type min, value_type max)
@@ -160,6 +159,17 @@ namespace hpp {
     void PointCloud::setDisplay(bool flag)
     {
       display_ = flag;
+    }
+
+    /// Refresh octree in gepetto-viewer
+    void PointCloud::refreshOctree()
+    {
+      if (octreeFrame_.empty()) return;
+      if (display_){
+        // Remove point cloud from gepetto-gui.
+        undisplayOctree(octreeFrame_);
+        displayOctree(octreeFrame_);
+      }
     }
 
     void checkFields(const std::vector<sensor_msgs::PointField>& fields)
@@ -259,6 +269,9 @@ namespace hpp {
           ptr+=data->point_step;
         }
       }
+      ROS_INFO_STREAM("Used "  << iPoint << " out of "
+                      << data->height * data->width
+                      << " to build point cloud.");
       pointsInSensorFrame_[pc_id].conservativeResize(iPoint, 3);
     }
 
@@ -311,8 +324,7 @@ namespace hpp {
       }
     }
 
-    void PointCloud::attachOctreeToRobot
-    (const OcTreePtr_t& octree, const std::string& octreeFrame)
+    void PointCloud::attachOctreeToRobot(const std::string& octreeFrame)
     {
       const DevicePtr_t& robot (problemSolver_->robot());
       const Frame& of(robot->getFrameByName(octreeFrame));
@@ -326,7 +338,7 @@ namespace hpp {
       }
       ::pinocchio::GeometryObject octreeGo
 	        (name,std::numeric_limits<FrameIndex>::max(), pinOctreeFrame.parent,
-	        octree, Transform3f::Identity());
+	        octree_, Transform3f::Identity());
       GeomIndex octreeGeomId(robot->geomModel().addGeometryObject(octreeGo));
       // Add collision pairs with all objects not attached to the octree joint.
       for (std::size_t geomId=0; geomId <
@@ -349,14 +361,14 @@ namespace hpp {
 	      problemSolver_->resetProblem();
       if (display_){
         // Display point cloud in gepetto-gui.
-        displayOctree(octree, octreeFrame);
+        undisplayOctree(octreeFrame);
+        displayOctree(octreeFrame);
       }
     }
 
 #ifdef CLIENT_TO_GEPETTO_VIEWER
 
-    bool PointCloud::displayOctree
-    (const OcTreePtr_t& octree, const std::string& octreeFrame)
+    bool PointCloud::displayOctree(const std::string& octreeFrame)
     {
       std::string prefix("robot/");
       // Connect to gepetto-gui without raising exception
@@ -364,7 +376,7 @@ namespace hpp {
       gepetto::corbaserver::GraphicalInterface_var gui
 	(gepetto::viewer::corba::gui());
       std::string nodeName(prefix + octreeFrame + std::string("/octree"));
-      octree->exportAsObjFile("/tmp/octree.obj");
+      octree_->exportAsObjFile("/tmp/octree.obj");
       try {
 	// If node already exists, remove it
 	if (gui->nodeExists(nodeName.c_str())){
@@ -394,6 +406,7 @@ namespace hpp {
       try {
 	// If node already exists, remove it
 	if (gui->nodeExists(nodeName.c_str())){
+	  gui->removeObjectFromCache(nodeName.c_str());
 	  gui->deleteNode(nodeName.c_str(), true);
           return true;
 	}

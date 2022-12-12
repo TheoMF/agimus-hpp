@@ -254,7 +254,14 @@ class HppOutputQueue(HppClient):
         while n < len(self.times):
             if n < nstar:
                 prev = rospy.Time.now()
-                self.discretization.compute (self.times[n])
+                try:
+                    # If evaluation of the path for this parameter fails,
+                    # do not publish anything
+                    self.discretization.compute (self.times[n])
+                except:
+                    self.discretization.compute (self.times[n-1])
+                    rospy.logwarn("Failed to evaluate path at parameter {}".
+                                  format(self.times[n]))
                 now = rospy.Time.now()
                 computation_time += now - prev
                 n += 1
