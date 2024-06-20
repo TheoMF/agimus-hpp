@@ -57,6 +57,7 @@ namespace hpp {
         enum ComputationOption
         {   Position              = 1
           , Derivative            = 2
+          , Acceleration          = 4
           , PositionAndDerivative = Position | Derivative
         };
 
@@ -124,12 +125,13 @@ namespace hpp {
 
         Configuration_t q_;
         vector_t v_;
+        vector_t a_;
 
         std::string topicPrefix_;
 
         Eigen::RowBlockIndices qView_, vView_;
 
-        ros::Publisher pubQ, pubV;
+        ros::Publisher pubQ, pubV, pubA;
         struct COM {
           CenterOfMassComputationPtr_t com;
           ComputationOption option;

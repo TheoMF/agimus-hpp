@@ -56,6 +56,8 @@ namespace hpp {
         case Derivative:
           com->compute (d, pinocchio::VELOCITY);
           break;
+        case Acceleration:
+          break;
         case PositionAndDerivative:
           com->compute (d, pinocchio::COMPUTE_ALL);
           break;
@@ -102,11 +104,13 @@ namespace hpp {
 
       q_.resize(device_->configSize());
       v_.resize(device_->numberDof ());
+      a_.resize(device_->numberDof ());
 
       bool success = path_->eval (q_, time);
       if (!success)
         throw std::runtime_error ("Could not evaluate the path");
       path_->derivative (v_, time, 1);
+      path_->derivative (a_, time, 2);
 
       pinocchio::DeviceSync device (device_);
       device.currentConfiguration(q_);
@@ -134,6 +138,15 @@ namespace hpp {
 					 sizeFreeflyer).setZero();
       }
       pubV.publish (qmsgs);
+
+      Eigen::Map<pinocchio::vector_t> (qmsgs.data.data()+sizeFreeflyer,
+				       vView_.nbIndices()) = vView_.rview(a_);
+      { // TODO Set root joint acceleration
+        Eigen::Map<pinocchio::vector_t> (qmsgs.data.data(),
+					 sizeFreeflyer).setZero();
+      }
+      pubA.publish (qmsgs);
+      
 
       for (std::size_t i = 0; i < frames_.size(); ++i) {
         FrameData& frame = frames_[i];
@@ -280,6 +293,9 @@ namespace hpp {
       pubV = handle_->advertise <dynamic_graph_bridge_msgs::Vector> (
           topicPrefix_ + "velocity",
           queue_size, false);
+      pubA = handle_->advertise <dynamic_graph_bridge_msgs::Vector> (
+          topicPrefix_ + "acceleration",
+          queue_size, false);
       return ret;
     }
 
@@ -290,6 +306,7 @@ namespace hpp {
       resetTopics();
       pubQ.shutdown();
       pubV.shutdown();
+      pubA.shutdown();
       if (handle_) delete handle_;
       handle_ = NULL;
     }

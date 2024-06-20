@@ -93,8 +93,8 @@ class HppOutputQueue(HppClient):
         super(HppOutputQueue, self).__init__ (connect=False)
 
         ## Publication frequency
-        self.dt = rospy.get_param ("/sot_controller/dt")
-        self.frequency = 1. / self.dt # Hz
+        # self.dt = rospy.get_param ("/sot_controller/dt")
+        self.frequency = 1000 #1. / self.dt # Hz
 
 
         self.subscribers = ros_tools.createSubscribers (self, "", self.subscribersDict)

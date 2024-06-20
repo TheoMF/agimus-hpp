@@ -45,7 +45,7 @@ else:
 def run():
     rospy.init_node('hpp_server_connection')
 
-    _pra = pra.PlanningRequestAdapter ("/joint_states")
+    # _pra = pra.PlanningRequestAdapter ("/joint_states")
     _tp = tp.HppOutputQueue ()
 
     rospy.spin()
