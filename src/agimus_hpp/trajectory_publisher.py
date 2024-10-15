@@ -94,7 +94,7 @@ class HppOutputQueue(HppClient):
 
         ## Publication frequency
         # self.dt = rospy.get_param ("/sot_controller/dt")
-        self.frequency = 1000 #1. / self.dt # Hz
+        self.frequency = 100 #1. / self.dt # Hz
 
 
         self.subscribers = ros_tools.createSubscribers (self, "", self.subscribersDict)
@@ -248,7 +248,7 @@ class HppOutputQueue(HppClient):
         advance = 0.150 * self.frequency # Begin with 150ms of points
         nstar = min(advance, len(self.times))
         start = rospy.Time.now()
-        rate = rospy.Rate (100) # Send 10ms every 10ms
+        rate = rospy.Rate (200) # Send 10ms every 10ms
         computation_time = rospy.Duration()
         now = rospy.Time.now()
         while n < len(self.times):
@@ -269,7 +269,7 @@ class HppOutputQueue(HppClient):
                 rate.sleep()
                 now = rospy.Time.now()
             t = (now - start).to_sec()
-            nstar = min(advance + t * self.frequency, len(self.times))
+            nstar = min(advance + t * 200, len(self.times))
 
         avg = computation_time.to_sec()/n
         if self.dt <= avg:
